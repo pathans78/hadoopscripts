@@ -1,0 +1,320 @@
+$$$$$$$$$$$$$$$$$$$$ Creating a WebServer.$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    sudo yum install httpd -y
+    sudo chkconfig httpd on 
+    sudo service httpd status
+    sudo service httpd start
+    
+wget --no-check-certificate https://archive.cloudera.com/cm5/repo-as-tarball/5.4.5/cm5.4.5-centos6.tar.gz
+
+wget --no-check-certificate http://archive.cloudera.com/cdh5/repo-as-tarball/5.4.0/cdh5.4.0-centos6.tar.gz
+
+sudo tar -zxvf  cdh5.4.0-centos6.tar.gz -C /var/www/html/
+
+sudo tar -zxvf cm5.4.5-centos6.tar.gz -C /var/www/html/    
+ 
+
+ls -ld /var/www/html/*
+
+     
+sudo mv /var/www/html/cm/cloudera-manager.repo  /var/www/html/cm/cloudera-manager.repo.save     
+     
+
+     cd /etc/yum.repos.d/
+
+     sudo nano cloudera-manager.repo
+
+[cloudera-manager]
+name=cloudera manager
+baseurl=http://3.133.95.4/cm/5.4.5
+gpgcheck = 1
+gpgkey =http://3.133.95.4/cm/RPM-GPG-KEY-cloudera
+
+
+:wq
+
+
+
+     cat cloudera-manager.repo 
+
+   sudo cp /etc/yum.repos.d/cloudera-manager.repo    /var/www/html/cm/cloudera-manager.repo
+     
+
+
+     sudo yum repolist all
+
+   	echo -e  'y\n'| ssh-keygen -t rsa -P "" -f $HOME/.ssh/id_rsa
+    cat  ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys && ssh localhost
+
+
+
+    wget --no-check-certificate https://archive.cloudera.com/cm5/installer/5.4.5/cloudera-manager-installer.bin
+    
+	chmod +x cloudera-manager-installer.bin
+
+    sudo ./cloudera-manager-installer.bin --skip_repo_package=1
+sudo service cloudera-scm-server status
+$$$$$$$$$$$$$$$$$$$$$$$$ RDBMS $$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+sudo yum update
+sudo yum install mysql-server
+sudo service mysqld start (its for centos-6)
+sudo service mysqld status
+   sudo chkconfig mysqld on
+sudo /usr/bin/mysql_secure_installation
+
+Enter current password for root (enter for none):
+OK, successfully used password, moving on...
+
+Set root password? [Y/n] Y
+New password:
+Re-enter new password:
+Remove anonymous users? [Y/n] Y
+
+Disallow root login remotely? [Y/n] N
+
+Remove test database and access to it [Y/n] Y
+
+Reload privilege tables now? [Y/n] Y
+All done!
+
+mysql -u root -p
+
+password 123
+
+CREATE DATABASE rman DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use rman;
+create user rman;
+grant all on rman.* TO 'rman'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for rman;
+
+CREATE DATABASE hue DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use hue;
+create user hue;
+grant all on hue.* TO 'hue'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for hue;
+exit;
+
+CREATE DATABASE atmon DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use atmon;
+create user atmon;
+grant all on atmon.* TO 'atmon'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for atmon;
+exit;
+
+CREATE DATABASE navms DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use navms;
+create user navms;
+grant all on navms.* TO 'navms'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for navms;
+exit;
+
+CREATE DATABASE nav DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use nav;
+create user nav;
+grant all on nav.* TO 'nav'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for nav;
+exit;
+
+CREATE DATABASE hive DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use hive;
+create user hive;
+grant all on hive.* TO 'hive'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for hive;
+exit;
+
+CREATE DATABASE oozie_server DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use oozie_server;
+create user oozie_server;
+grant all on oozie_server.* TO 'oozie_server'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for oozie_server;
+exit;
+
+CREATE DATABASE sentry DEFAULT CHARACTER SET utf8 ; 
+SHOW DATABASES;
+use sentry;
+create user sentry;
+grant all on sentry.* TO 'sentry'@'%'  IDENTIFIED BY 'password';
+flush privileges;
+SHOW DATABASES;
+show grants for sentry;
+exit;
+ sudo service mysqld restart
+
+port number for mysql is 3306
+
+sh clustercmd.sh sudo yum install -y mysql-connector-java
+
+$$$$$$$$$$$$$$$$$$$Downloading and sending files on cluster$$$$$$$$$$$$$$$$$$$$$4
+.\pscp -i .\security.ppk centos@`CM private IP`:/etc/krb5.conf ./------(Pull over krb5.conf and edit it)
+sh putnmove.sh krb5.conf /etc/
+sh putnmove.sh hosts /etc/hosts  (its domain for our cluster add AD private IP)
+
+Install openldap-clients and krb5-workstation if it's not there.
+
+sh ./clustercmd.sh sudo yum install openldap-clients -y
+sh ./clustercmd.sh sudo yum install krb5-workstation -y
+
+#########Perform for a ticket########
+
+kinit cm
+
+klist
+
+kdestroy
+
+#########Try an openssl connection#########
+
+openssl s_client -connect hadoop-ad.hadoopsecurity.local:636  ------(for handshake)
+
+$$$$$$$$$$$Enable ldap authentication$$$$$$$$$$$$$$$$$$$
+set:
+backend to
+desktop.auth.backend.ldapBackend
+
+ldap_url: ldaps://hadoop-ad.hadoopsecurity.local
+
+##start_tls checked
+##create LDAP users on login checked
+
+LDAP search base should be:dc=hadoop-ad,dc=hadoopsecurity,dc=local
+
+LDAP bind user:cm
+
+LDAP bind password: Manchester1
+
+Set NT domain: hadoopsecurity.local
+
+$$$$$$$$ Save changes-Restart cluster$$$$$$$
+	@@@ OPEN HUE BROWSER @@@
+
+$$$$$$$$$$$$$$$$$$$$$$ SENTRY (Authorization)$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+sh ./clustercmd.sh sudo useradd govind 
+sh ./clustercmd.sh sudo useradd user2
+sh ./clustercmd.sh sudo useradd admin
+sh ./clustercmd.sh sudo useradd jinga
+
+beeline
+
+!connect jdbc:hive2://ip-10-0-0-130.us-east-2.compute.internal:10000/default;principal=hive/ip-10-0-0-130.us-east-2.compute.internal@HADOOPSECURITY.COM
+
+
+create role admin_role;
+grant all on server server1 to role admin_role;
+grant all on database default to role admin_role;
+grant role admin_role to group admin;
+
+Then we'll ssh to the gateway node and upload it to HDFS.
+
+create hdfs user on AD 
+
+sudo su hdfs
+kinit hdfs
+klist
+And upload the file
+
+wget https://go-sa.s3.us-east-2.amazonaws.com/dataset
+
+hadoop fs -put dataset /user/hive/sightex.csv
+hadoop fs -chown hive:hive /user/hive/sightex.csv
+
+kinit admin
+
+And then launch beeline and connect to hive server 2
+
+beeline
+
+!connect jdbc:hive2://ip-10-0-0-130.us-east-2.compute.internal:10000/default;principal=hive/ip-10-0-0-130.us-east-2.compute.internal@HADOOPSECURITY.COM
+
+
+create role admin_role;
+grant all on server server1 to role admin_role;
+grant all on database default to role admin_role;
+grant role admin_role to group admin;
+
+look in the directory containing hive-contrib.jar set in hive aux jars
+ in Cloudera Manager as set in the hive aux directory.
+for parcels path (/opt/cloudera/parcels/CDH/lib/hive/lib)     (search aux in hive configuration)
+for packages path ( /usr/lib/hive/lib )
+ 
+Confirm that you can create a simple table:
+
+create table foo(a string);
+show tables;
+
+If that works, Sentry has applied your privi or nanoleges.
+
+If that works, Sentry has applied your privileges.
+ Now, let's create a table describing the dataset data using the regex serde.
+
+https://community.hortonworks.com/articles/58591/using-regular-expressions-to-extract-fields-for-hi.html
+https://www.cloudera.com/documentation/enterprise/5-5-x/topics/sg_hive_sql.html
+
+create table sightex (group1 string, group2 string, group3 string, group4 string, group5 string, group6 string, group7 string, group8 string, group9 string, group10 string) row format serde 'org.apache.hadoop.hive.contrib.serde2.RegexSerDe' with serdeproperties ( "input.regex"="(\\d*),(\\d*),(\".*\"),((\".*\")|([^,]*)),((\".*\")|([^,]*)),(\".*\")" ) stored as textfile;
+
+load data inpath '/user/hive/sightex.csv' into table sightex;
+
+This is backed by regex serde so is slow and not supported by Impala,
+so let's create a copy of the table.
+
+create table sightings_parquet as select group1 as sightex, group2 as reported, group3 as loc, group4 as shape, group7 as duration, group10 as description from sightex where group1 is not null;
+
+create role analyst;
+grant select on table sightings_parquet to role analyst;
+grant role analyst to group user1;
+
+
+Now, let's create a vi or nanoew on sightings_parquet that excludes the description
+column and allow user2 to read that vi or nanoew.
+
+
+create view sightings_ltd as select sightex, reported, loc, shape, duration from sightings_parquet;
+create role ltd_reader;
+grant select on sightings_ltd to role ltd_reader;
+grant role ltd_reader to group user2;
+
+
+So imagine UFO sightings in New Jersey have particular interest to a different
+community of users. Let's create a derived table with UFO Sightings from New
+Jersey and make that readable by jinga
+
+
+create database sightings_parquet; 
+
+create table jersey as select * from sightings_parquet where loc LIKE "%NJ%";
+create role nj;
+grant select on jersey to role nj;
+grant role nj to group jinga;
+
+create database sightings_parquet; 
+create table jersey as select * from sightings_parquet where loc LIKE "%NJ%";
+create role nj;
+grant select on jersey to role nj;
+grant role nj to group admin;
+
+Now query with hue to see sentry in action
+
+select description from sightings_parquet limit 20;
+
+

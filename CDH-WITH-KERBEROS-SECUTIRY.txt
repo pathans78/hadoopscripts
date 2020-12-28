@@ -1,0 +1,231 @@
+------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+MIT KERBEROS INSTALLATION  ON KDC server 10.142.0.7 / kdc-cdh.c.main-sphere-205115.internal
+------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+
+
+
+1)  	Install a new version of the KDC server on host  [10.142.0.7	kdc-cdh.c.main-sphere-205115.internal] 
+
+@kdc-cdh ~]# yum install krb5-server krb5-libs krb5-workstation
+@kdc-cdh ~]# yum install krb5-libs krb5-workstation -y          [ Install this on all Nodes ]
+
+
+-------------
+2)  	Using a text editor, open the KDC server configuration file, located by default here:
+
+
+@kdc-cdh ~]# sed -i 's/EXAMPLE.COM/HADOOPSECURITY.COM/g' /etc/krb5.conf
+@kdc-cdh ~]# sed -i 's/example.com/hadoopsecurity.com/g' /etc/krb5.conf
+@kdc-cdh ~]# vi /etc/krb5.conf
+
+[logging]
+ default = FILE:/var/log/krb5libs.log
+ kdc = FILE:/var/log/krb5kdc.log
+ admin_server = FILE:/var/log/kadmind.log
+
+[libdefaults]
+ default_realm = HADOOPSECURITY.COM
+ dns_lookup_realm = false
+ dns_lookup_kdc = false
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ forwardable = true
+
+ default_tgs_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+ default_tkt_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+ permitted_enctypes = aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96 arcfour-hmac-md5
+
+[realms]
+ HADOOPSECURITY.COM = {
+  kdc = kdc-cdh.c.main-sphere-205115.internal
+  admin_server = kdc-cdh.c.main-sphere-205115.internal
+ }
+
+[domain_realm]
+ .hadoopsecurity.com = HADOOPSECURITY.COM
+ hadoopsecurity.com = HADOOPSECURITY.COM
+
+------------- 
+3)  	Change the /var/kerberos/krb5kdc/kdc.conf file. 
+
+@kdc-cdh ~]# sed -i 's/EXAMPLE.COM/HADOOPSECURITY.COM/g' /var/kerberos/krb5kdc/kdc.conf
+@kdc-cdh ~]# vi /var/kerberos/krb5kdc/kdc.conf
+
+[kdcdefaults]
+ kdc_ports = 88
+ kdc_tcp_ports = 88
+
+[realms]
+ HADOOPSECURITY.COM = {
+  #master_key_type = aes256-cts
+  acl_file = /var/kerberos/krb5kdc/kadm5.acl
+  dict_file = /usr/share/dict/words
+  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+ }
+
+ 
+-------------
+4)   	Create the Kerberos Database  & Provide Password 123 when you are prompted 
+
+@kdc-cdh ~]# kdb5_util create -s
+Loading random data
+Initializing database '/var/kerberos/krb5kdc/principal' for realm 'HADOOPSECURITY.COM',
+master key name 'K/M@HADOOPSECURITY.COM'
+You will be prompted for the database Master Password. 
+It is important that you NOT FORGET this password.   123
+Enter KDC database master key:  123
+Re-enter KDC database master key to verify:
+
+-------------
+5) 		Confirm that this admin principal has permissions in the KDC ACL. Using a text editor, open the KDC ACL file:
+[ RHEL/CentOS/Oracle Linux ]
+
+@kdc-cdh ~]# sed -i 's/EXAMPLE.COM/HADOOPSECURITY.COM/g' /var/kerberos/krb5kdc/kadm5.acl
+@kdc-cdh ~]# vi /var/kerberos/krb5kdc/kadm5.acl
+*/admin@HADOOPSECURITY.COM *  
+
+-------------
+6)  	Once you successfully created KDC database ; Start the KDC services. 
+
+@kdc-cdh ~]# /etc/rc.d/init.d/krb5kdc start
+@kdc-cdh ~]# /etc/rc.d/init.d/kadmin start
+@kdc-cdh ~]# chkconfig krb5kdc on
+@kdc-cdh ~]# chkconfig kadmin on
+
+
+-------------
+7) 		Create a KDC admin by creating an admin principal.
+
+@kdc-cdh ~]# kadmin.local -q "addprinc admin/admin"
+Authenticating as principal root/admin@HADOOPSECURITY.COM with password.  [ 123  -- password ]
+WARNING: no policy specified for admin/admin@HADOOPSECURITY.COM; defaulting to no policy
+Enter password for principal "admin/admin@HADOOPSECURITY.COM":
+Re-enter password for principal "admin/admin@HADOOPSECURITY.COM":
+Principal "admin/admin@HADOOPSECURITY.COM" created.
+
+
+-------------
+8)		You must restart the kadmin process.
+
+@kdc-cdh ~]# /etc/rc.d/init.d/kadmin restart
+
+
+
+------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+ENABLE KERBEROS IN CLUDERA CDH CLUSTER
+------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+
+PREREQUISITE   :-   Install JCE Policy File On "ALL SERVER".  Check Your JAVA Path like below cmnd.
+
+@kdc-cdh ~]# ls -lhrt /usr/java/jdk1.7.0_67-cloudera/jre/lib/security
+
+Download the JCE.zip file  as per your JAVA Version from Below Link. 
+
+http://www.oracle.com/technetwork/java/javase/downloads/jce-7-download-432124.html
+http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+
+@kdc-cdh ~]# Unzip JCE.zip file.
+@kdc-cdh ~]# cd UnlimitedJCEPolicy
+@kdc-cdh ~]# sudo cp -p US_export_policy.jar local_policy.jar /usr/java/jdk1.7.0_67-cloudera/jre/lib/security
+
+------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------
+
+---------------- 
+1) Log in CLoudera Manager & GO to Admin ----> Security --- Enable Kerberose
+
+---------------- 
+2) You will enter in "Enable Kerberos for YUOR CLUSTER" Wizard.  In  "Before using the wizard, ensure that you have performed the following steps:"
+
+	[#]	Set up a working KDC. Cloudera Manager supports MIT KDC and Active Directory.
+	[#]	The KDC should be configured to have non-zero ticket lifetime and renewal lifetime. CDH will not work properly if tickets are not renewable.
+	[#]	OpenLdap client libraries should be installed on the Cloudera Manager Server host if you want to use Active Directory. Also, Kerberos client libraries should be installed on ALL hosts.
+	[#]	Cloudera Manager needs an account that has permissions to create other accounts in the KDC.
+  
+  Check above Boxes and Click on "Continue" button. 
+
+----------------   
+3)  In "Setup KDC" Page  select  as
+
+"KDC Type"
+	[ ]	Active Directory
+	[#]	MIT KDC
+
+	
+"Kerberos Encryption Types"
+   
+   aes256-cts-hmac-sha1-96
+   aes128-cts-hmac-sha1-96
+   arcfour-hmac-md5
+   des3-hmac-sha1
+   arcfour-hmac
+   des-hmac-sha1
+   des-cbc-md5
+   des-cbc-crc
+
+   
+ "Kerberos Security Realm"
+ 
+     HADOOPSECURITY.COM
+    
+
+"KDC Server Host"
+
+     kdc.c.main-sphere-205115.internal  [HOSTNAME OF KDC SERVER]
+
+	 
+"KDC Admin Server Host"	 
+
+	kdc.c.main-sphere-205115.internal  [HOSTNAME OF KDC SERVER]
+	
+	
+Provide the required details and Click on "Continue" button.
+
+
+---------------- 
+4) In "Manage krb5.conf" page , don't do anything and Click on "Continue" button.
+
+
+---------------- 
+5) In "Setup KDC Account" page , 
+
+	Enter the credentials for the account that has permissions to create other users. Cloudera Manager will store the credentials in encrypted form and use them whenever new principals need to be generated.
+	
+	 Username :-	admin/admin@HADOOPSECURITY.COM
+	 Password :-	123   [ YOUR KDC PASSWORD]
+	 	 
+	 
+----------------  
+6) In "Import KDC Account Manager Credentials Command" page, It will check the KDC Credentials & Import KDC Account Manager Credentials .   If successfully imported the credentials You will get below msg.
+
+  "Successfully imported KDC Account Manager credentials."
+  
+  
+  
+---------------- 
+7) In "Configure Principals" page , don't do anything and Click on "Continue" button.
+
+
+
+---------------- 
+8) In "Configure Ports" page , select Yes, I am ready to restart the cluster now.
+
+		The cluster needs to be restarted for the changes to take effect.	
+		[#] Yes, I am ready to restart the cluster now.
+
+  Click on "Continue" button.
+  
+---------------- 
+9) In "Enable Kerberos Command" , It will Stop The cluster & Genrate Keytabs & Then start the services. Once all fine Click on "Continue" button.
+
+
+---------------- 
+10)   IF ALL OK THEN CLUSTER IS KERBERIZED.. 
+
+!!!!!!!!!!!!!!!!!!!!  CONGRATULATIONS YOUR CLUSTER IS KERBERIZED NOW    !!!!!!!!!!!!!!!!!!!!
+
